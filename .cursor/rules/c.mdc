@@ -1,0 +1,20 @@
+globs: *.c, *.h
+
+Rules:
+- Use C11 standard for all code unless otherwise specified.
+- Follow K&R style for formatting (e.g., braces on same line, 4-space indentation).
+- Write concise, portable C code compatible with POSIX systems.
+- Always declare function prototypes in header files (*.h) before implementation in source files (*.c).
+- Use meaningful variable and function names with snake_case convention (e.g., `process_data`, not `processData`).
+- Include error handling with appropriate return codes (e.g., 0 for success, negative values for errors).
+- Prefer explicit memory management with `malloc` and `free`; avoid memory leaks.
+- Use `const` for immutable data and pointers where applicable.
+- Avoid global variables unless necessary; prefer passing data via function parameters.
+- Comment complex logic with brief, clear explanations above the relevant code block.
+- For pointers, use descriptive names indicating purpose (e.g., `input_ptr` instead of `ptr`).
+- Include standard library headers explicitly (e.g., `<stdio.h>`, `<stdlib.h>`); avoid unnecessary includes.
+
+Examples:
+- Function declaration in *.h:
+  ```c
+  int process_data(const char *input, size_t length);
