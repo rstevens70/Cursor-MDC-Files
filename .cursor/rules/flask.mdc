@@ -1,0 +1,25 @@
+globs: *.py
+
+Rules:
+- Use Python 3.9+ with Flask 2.x for all code.
+- Follow PEP 8 style guidelines (e.g., 4-space indentation, 79-character line limit).
+- Organize Flask apps using the application factory pattern (create_app() function).
+- Define routes with clear, RESTful URL patterns (e.g., /api/users/<int:user_id>).
+- Use Flask’s Blueprint for modular route organization in larger projects.
+- Return JSON responses with appropriate HTTP status codes (e.g., 200, 404, 500).
+- Handle exceptions with try/except and return error responses using jsonify.
+- Use environment variables for configuration (e.g., via python-dotenv) instead of hardcoding.
+- Prefer SQLAlchemy for database interactions; include model definitions with relationships.
+- Write concise, descriptive docstrings for functions and classes in Google style.
+- Avoid global variables; use Flask’s g object or app context for state.
+- Include logging with Python’s built-in logging module instead of print statements.
+
+Examples:
+- Application factory:
+  ```python
+  from flask import Flask
+  
+  def create_app():
+      app = Flask(__name__)
+      app.config.from_prefixed_env()
+      return app
