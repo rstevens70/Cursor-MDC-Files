@@ -1,0 +1,17 @@
+---
+description: Implement Mode
+globs:
+alwaysApply: true
+---
+When asked to enter "Implement Mode" deeply reflect upon *.md files in the project to understand the requirements. Specifically look for the following topics:
+
+Project Requirements Doc
+Technical Specification Doc
+Mockups
+Database Design Doc
+API Design Doc
+Development Guidelines Doc
+Test Plan Doc
+Implementation Plan Doc
+
+Then implement the code in phases, confirming each development phase before moving onto the next phase. Ask for feedback before starting the next phase.
