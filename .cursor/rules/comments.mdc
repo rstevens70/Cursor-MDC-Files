@@ -1,0 +1,416 @@
+ # C Function Documentation Guidelines
+Based on Doxygen documentation standards and industry best practices
+
+## Doxygen-Compatible Comment Blocks
+
+### Basic Function Documentation
+Use Doxygen-compatible comment blocks for all functions:
+
+```c
+/**
+ * @brief Calculates the factorial of a non-negative integer.
+ *
+ * @param n The non-negative integer to compute the factorial for.
+ * @return The factorial of n, or 0 if n is negative.
+ */
+unsigned long factorial(int n) {
+    // Implementation...
+}
+```
+
+### Comprehensive Function Documentation
+For complex functions, provide more detailed documentation:
+
+```c
+/**
+ * @brief Transfers a file from the client to the remote agent.
+ *
+ * This function implements the PUT command by sending file data in chunks
+ * of 1MB each. It performs integrity validation using SHA-256 hashing and
+ * implements ACK-based retransmission for reliability.
+ *
+ * @param client_socket The connected socket to the client.
+ * @param local_path Path to the source file on the client.
+ * @param remote_path Destination path on the remote agent.
+ * @param key Encryption key for secure transfer.
+ *
+ * @return 0 on successful transfer, negative error code on failure.
+ *
+ * @pre client_socket must be a valid connected socket.
+ * @pre local_path must be a readable file.
+ * @pre key must be a valid encryption key of appropriate length.
+ *
+ * @note Large files (>1GB) may take significant time to transfer.
+ *
+ * @see get_file() for the reverse operation.
+ */
+int put_file(int client_socket, const char *local_path, 
+             const char *remote_path, const unsigned char *key) {
+    // Implementation...
+}
+```
+
+## Comment Structure and Placement
+
+### Header Files (.h)
+Document all public functions, types, and constants in header files:
+
+```c
+/**
+ * @file client.h
+ * @brief Client interface for the Remote Agent System
+ *
+ * This file contains the public API for the client component
+ * of the Remote Agent System.
+ *
+ * @author Remote Agent Team
+ */
+
+/**
+ * @brief Client initialization options
+ */
+typedef struct {
+    int timeout_seconds;  /**< Connection timeout in seconds */
+    bool verbose;         /**< Enable verbose output */
+    char *key_file;       /**< Path to encryption key file */
+} client_options_t;
+
+/**
+ * @brief Initialize a client instance with specified options
+ *
+ * @param options Configuration options
+ * @return Client handle on success, NULL on failure
+ */
+client_t *client_init(const client_options_t *options);
+```
+
+### Implementation Files (.c)
+Document static (private) functions in source files:
+
+```c
+/**
+ * @file client.c
+ * @brief Implementation of client functionality
+ */
+
+/**
+ * @brief Validate client configuration options
+ *
+ * @param options The options to validate
+ * @return true if options are valid, false otherwise
+ *
+ * @note This is an internal helper function not exposed in the public API
+ */
+static bool validate_options(const client_options_t *options) {
+    // Implementation...
+}
+```
+
+## Documenting Different Elements
+
+### Struct and Union Documentation
+
+```c
+/**
+ * @brief Network message header structure
+ *
+ * This structure defines the binary format for all messages
+ * exchanged between client and agent.
+ */
+typedef struct {
+    uint32_t command_code;  /**< Command type (1=PUT, 2=GET, etc.) */
+    uint32_t payload_length; /**< Length of attached payload in bytes */
+    uint32_t chunk_current;  /**< Current chunk number (0-based) */
+    uint32_t chunk_total;    /**< Total chunks in the sequence */
+    uint8_t  nonce[24];      /**< Encryption nonce (TweetNaCl) */
+    uint8_t  reserved[24];   /**< Reserved for future use */
+} message_header_t;
+```
+
+### Enum Documentation
+
+```c
+/**
+ * @brief Command codes for network protocol
+ */
+typedef enum {
+    CMD_PUT = 1,   /**< Upload file to agent */
+    CMD_GET = 2,   /**< Download file from agent */
+    CMD_LOAD = 3,  /**< Load module on agent */
+    CMD_DO = 4     /**< Execute module on agent */
+} command_code_t;
+```
+
+### Constants and Macros
+
+```c
+/** @brief Maximum supported chunk size in bytes */
+#define MAX_CHUNK_SIZE (1024 * 1024)  /* 1MB */
+
+/** @brief Default connection timeout in seconds */
+#define DEFAULT_TIMEOUT 10
+```
+
+## Special Documentation Tags
+
+### Error Handling Documentation
+
+```c
+/**
+ * @brief Connect to remote agent
+ *
+ * @param hostname Remote host name or IP address
+ * @param port TCP port number
+ * @param timeout_sec Connection timeout in seconds
+ *
+ * @return Socket file descriptor on success, -1 on error
+ *
+ * @throws ECONNREFUSED if connection is actively refused
+ * @throws ETIMEDOUT if connection times out
+ * @throws EINVAL if hostname is NULL or empty
+ */
+int connect_to_agent(const char *hostname, int port, int timeout_sec);
+```
+
+### Thread Safety Documentation
+
+```c
+/**
+ * @brief Add module to the loaded modules list
+ *
+ * @param module_handle Handle to the loaded module
+ * @param module_id Module identifier string
+ *
+ * @return 0 on success, negative error code on failure
+ *
+ * @note This function is not thread-safe and should only be called
+ *       while holding the modules_mutex lock.
+ */
+int register_module(void *module_handle, const char *module_id);
+```
+
+### Security Notes
+
+```c
+/**
+ * @brief Process user authentication
+ *
+ * @param username Username to authenticate
+ * @param password User password
+ *
+ * @return true if authentication succeeds, false otherwise
+ *
+ * @warning Passwords are security-sensitive. Never log or display
+ *          password values, even in debug mode.
+ */
+bool authenticate_user(const char *username, const char *password);
+```
+
+## Code Block Documentation
+
+### Function Body Comments
+Use regular comments for implementation details:
+
+```c
+int calculate_total_chunks(size_t file_size) {
+    // Handle edge case of empty file
+    if (file_size == 0) {
+        return 0;
+    }
+    
+    /* 
+     * Calculate chunks needed, rounding up to include
+     * partial chunks (integer division with ceiling)
+     */
+    return (file_size + MAX_CHUNK_SIZE - 1) / MAX_CHUNK_SIZE;
+}
+```
+
+### Comment Style Consistency
+
+```c
+// Single-line comments for brief notes
+
+/*
+ * Multi-line block comments for more detailed
+ * explanations that span several lines
+ */
+
+/**
+ * Doxygen-style comments for documentation
+ * that should be extracted to API docs
+ */
+```
+
+## Best Practices Checklist
+
+1. **Public API Documentation**
+   - Every public function must have a `@brief` description
+   - All parameters must be documented with `@param`
+   - Return values must be documented with `@return`
+   - Ownership transfer must be explicitly noted
+
+2. **Private Function Documentation**
+   - Use simpler documentation for static functions
+   - Still document non-obvious behavior or complex algorithms
+
+3. **Comment Content**
+   - Explain why code is doing something, not just what it's doing
+   - Document constraints, preconditions, and postconditions
+   - Note any side effects or state changes
+
+4. **Maintenance**
+   - Update comments when code changes
+   - Ensure comments and code don't contradict each other
+   - Remove obsolete comments
+
+## Examples of Good Comments
+
+### Algorithm Description
+
+```c
+/**
+ * @brief Find an available module slot
+ *
+ * This implements a linear search through the modules array
+ * to find either:
+ * 1. An empty slot (module_id == NULL)
+ * 2. An existing module with the same ID (for replacement)
+ *
+ * Time complexity: O(n) where n is MAX_MODULES
+ *
+ * @param module_id The module ID to find or place
+ * @return Index of the available slot, or -1 if no slots available
+ */
+static int find_module_slot(const char *module_id) {
+    // Implementation...
+}
+```
+
+### Data Structure Documentation
+
+```c
+/**
+ * @brief Chunked file transfer state
+ *
+ * This structure maintains the state for resumable file transfers.
+ * It tracks progress and buffers partial data to handle network
+ * interruptions gracefully.
+ */
+typedef struct {
+    FILE *file;              /**< Open file handle */
+    char *path;              /**< File path (owned by this struct) */
+    size_t file_size;        /**< Total file size in bytes */
+    size_t bytes_transferred; /**< Bytes successfully transferred */
+    uint32_t current_chunk;  /**< Current chunk being processed */
+    uint32_t total_chunks;   /**< Total chunks in file */
+    uint8_t file_hash[32];   /**< SHA-256 hash of complete file */
+} transfer_state_t;
+```
+
+## References
+
+- @Doxygen Documentation Guide
+- @SEI CERT C Coding Standard
+- @C17 Standard
+
+# Code Commenting Best Practices
+
+## General Principles
+- Write clear, concise comments that explain "why" not just "what"
+- Keep comments up-to-date with code changes
+- Use consistent commenting style throughout the codebase
+- Comment complex algorithms and non-obvious code
+- Avoid redundant comments that merely repeat the code
+- Use proper grammar and spelling
+- Write comments assuming the reader knows the language but not your specific code
+
+## Doxygen Documentation
+- Use Doxygen-compatible comment blocks for API documentation
+- Document all public functions, structures, and global variables
+- Use /** for multi-line documentation blocks
+- Use /// for single-line documentation
+- Document function parameters with @param
+- Document return values with @return
+- Document exceptions/errors with @throws or @exception
+- Use @brief for short descriptions
+
+## Function Documentation
+- Document the purpose of each function
+- Describe all parameters and their valid ranges
+- Document return values and their meaning
+- Specify preconditions and postconditions
+- Document side effects
+- Provide usage examples for complex functions
+- Document thread safety considerations
+- Note any performance considerations
+
+## Structure/Class Documentation
+- Document the purpose and usage of each structure
+- Describe each field and its meaning
+- Document invariants and constraints
+- Provide usage examples for complex structures
+- Document memory ownership for pointer fields
+- Note any thread safety considerations
+- Document lifecycle (initialization, usage, cleanup)
+
+## File-Level Documentation
+- Include a header comment at the top of each file
+- Document the file's purpose and contents
+- Include copyright and license information
+- List author(s) and creation/modification dates
+- Document dependencies and relationships with other files
+- Provide a brief overview of the file's functionality
+- Include version information if applicable
+
+## Code Block Comments
+- Use block comments to explain complex algorithms
+- Document the purpose of critical code sections
+- Explain non-obvious design decisions
+- Document workarounds and their reasons
+- Use TODO, FIXME, and NOTE tags consistently
+- Document performance-critical sections
+- Explain security-sensitive code
+
+## Project-Specific Guidelines
+- Follow Doxygen standards in markdown format as specified in DGD section 5
+- Document all functions, modules, and significant logic blocks
+- Include parameter details, return values, and usage examples
+- Document security considerations for network and file operations
+- Explain cross-platform compatibility considerations
+- Document thread safety for concurrent operations
+- Use consistent terminology across documentation
+
+## Example Doxygen Comment Block
+```c
+/**
+ * @brief Sends a file to the remote agent in chunks
+ *
+ * This function implements the PUT command, transferring a file from the
+ * client to the agent using 1MB chunks with ACK-based retransmission.
+ * It calculates a SHA-256 hash for integrity verification.
+ *
+ * @param conn The connection handle to the remote agent
+ * @param local_path Path to the local file to be sent
+ * @param remote_path Destination path on the remote system
+ * @param timeout_sec Timeout in seconds for each chunk (default: 10)
+ * @param max_retries Maximum number of retries per chunk (default: 10)
+ *
+ * @return 0 on success, negative error code on failure
+ *
+ * @throws CONNECTION_ERROR if the connection is lost during transfer
+ * @throws FILE_ERROR if the local file cannot be read
+ * @throws PERMISSION_ERROR if the remote file cannot be created
+ *
+ * @note This function implements the protocol described in API.md section 3.1
+ *
+ * @example
+ * // Send a file with default timeout and retries
+ * int result = put_file(conn, "local.txt", "/tmp/remote.txt", 10, 10);
+ * if (result < 0) {
+ *     handle_error(result);
+ * }
+ */
+int put_file(connection_t *conn, const char *local_path, 
+             const char *remote_path, int timeout_sec, int max_retries);
+``` 
