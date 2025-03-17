@@ -1,0 +1,346 @@
+ # Error Handling Best Practices
+Based on SEI CERT C Coding Standard and industry best practices
+
+## Core Principles
+
+### Always Check Return Values
+According to SEI CERT C (ERR33-C), check the return value of all non-void functions:
+
+```c
+// INCORRECT - No error checking
+FILE *file = fopen("important.dat", "r");
+char buffer[256];
+fread(buffer, 1, sizeof(buffer), file);
+fclose(file);
+
+// CORRECT - With error checking
+FILE *file = fopen("important.dat", "r");
+if (file == NULL) {
+    fprintf(stderr, "Error opening file: %s\n", strerror(errno));
+    return -1;
+}
+
+char buffer[256];
+size_t bytes_read = fread(buffer, 1, sizeof(buffer), file);
+if (bytes_read < sizeof(buffer) && ferror(file)) {
+    fprintf(stderr, "Error reading file: %s\n", strerror(errno));
+    fclose(file);
+    return -1;
+}
+
+if (fclose(file) != 0) {
+    fprintf(stderr, "Error closing file: %s\n", strerror(errno));
+    return -1;
+}
+```
+
+### Be Specific About Errors
+Use detailed error diagnostics with proper context (CERT ERR07-C):
+
+```c
+// INCORRECT - Vague error
+if (result != SUCCESS) {
+    fprintf(stderr, "Operation failed\n");
+    return -1;
+}
+
+// CORRECT - Specific error
+if (result != SUCCESS) {
+    fprintf(stderr, "Failed to connect to %s:%d: %s\n", 
+            hostname, port, strerror(errno));
+    return ERROR_CONNECTION_FAILED;
+}
+```
+
+## Error Reporting Techniques
+
+### Use errno for System Call Errors
+When system calls fail, use errno for diagnosis:
+
+```c
+fd = open("file.txt", O_RDONLY);
+if (fd == -1) {
+    // Multiple ways to report errors:
+    
+    // 1. Using perror (simplest):
+    perror("Failed to open file.txt");
+    
+    // 2. Using strerror (more flexible):
+    fprintf(stderr, "Error opening file: %s\n", strerror(errno));
+    
+    // 3. Using strerror_r (thread-safe):
+    char err_buf[100];
+    strerror_r(errno, err_buf, sizeof(err_buf));
+    fprintf(stderr, "Error opening file: %s\n", err_buf);
+    
+    return -1;
+}
+```
+
+### Use Error Codes for Application-Level Errors
+For application-specific errors, define and use clear error codes:
+
+```c
+// Define error codes in a header file
+typedef enum {
+    ERROR_SUCCESS = 0,
+    ERROR_INVALID_ARGUMENT = -1,
+    ERROR_NETWORK_FAILURE = -2,
+    ERROR_TIMEOUT = -3,
+    ERROR_AUTHENTICATION_FAILED = -4,
+    ERROR_MODULE_LOAD_FAILED = -5
+} ErrorCode;
+
+// Use meaningful return codes
+ErrorCode load_module(const char *path) {
+    if (path == NULL) {
+        return ERROR_INVALID_ARGUMENT;
+    }
+    
+    void *handle = dlopen(path, RTLD_NOW);
+    if (handle == NULL) {
+        log_error("Failed to load module: %s", dlerror());
+        return ERROR_MODULE_LOAD_FAILED;
+    }
+    
+    // Success case
+    register_module(handle);
+    return ERROR_SUCCESS;
+}
+```
+
+## Error Handling Strategies
+
+### Error Handling Functions
+Create consistent error handling functions:
+
+```c
+void log_error(const char *format, ...) {
+    va_list args;
+    va_start(args, format);
+    
+    // Add timestamp, log level, etc.
+    time_t now = time(NULL);
+    char timestamp[26];
+    ctime_r(&now, timestamp);
+    timestamp[24] = '\0'; // Remove newline
+    
+    fprintf(stderr, "[%s] ERROR: ", timestamp);
+    vfprintf(stderr, format, args);
+    fprintf(stderr, "\n");
+    
+    va_end(args);
+}
+
+void handle_fatal_error(const char *message) {
+    log_error("FATAL: %s", message);
+    exit(EXIT_FAILURE);
+}
+```
+
+### Resource Cleanup on Error
+Always clean up resources when errors occur (CERT ERR12-C):
+
+```c
+// INCORRECT - Resource leak on error
+int process_file(const char *filename) {
+    FILE *file = fopen(filename, "r");
+    if (file == NULL) {
+        return -1;
+    }
+    
+    void *data = malloc(1024);
+    if (data == NULL) {
+        return -1; // FILE* leaks here!
+    }
+    
+    // Process file...
+    
+    free(data);
+    fclose(file);
+    return 0;
+}
+
+// CORRECT - Cleanup on all error paths
+int process_file(const char *filename) {
+    int result = -1;
+    FILE *file = NULL;
+    void *data = NULL;
+    
+    file = fopen(filename, "r");
+    if (file == NULL) {
+        goto cleanup;
+    }
+    
+    data = malloc(1024);
+    if (data == NULL) {
+        goto cleanup;
+    }
+    
+    // Process file...
+    result = 0; // Success
+    
+cleanup:
+    if (data != NULL) {
+        free(data);
+    }
+    if (file != NULL) {
+        fclose(file);
+    }
+    return result;
+}
+```
+
+### Consistent Error Return Values
+Use consistent patterns for signaling errors:
+
+```c
+// Common patterns:
+// 1. Return 0 for success, negative for errors
+int function1() {
+    if (error_condition) {
+        return -ERROR_CODE;
+    }
+    return 0; // Success
+}
+
+// 2. Return pointer for success, NULL for errors
+void *function2() {
+    if (error_condition) {
+        errno = EINVAL;
+        return NULL;
+    }
+    return pointer_value; // Success
+}
+
+// 3. Return true for success, false for errors
+bool function3() {
+    if (error_condition) {
+        return false;
+    }
+    return true; // Success
+}
+```
+
+## Advanced Error Handling
+
+### Handling Library Errors
+Different libraries have different error handling mechanisms:
+
+```c
+// OpenSSL error handling
+int result = SSL_connect(ssl);
+if (result != 1) {
+    int err = SSL_get_error(ssl, result);
+    switch (err) {
+        case SSL_ERROR_ZERO_RETURN:
+            log_error("SSL connection closed cleanly");
+            break;
+        case SSL_ERROR_WANT_READ:
+        case SSL_ERROR_WANT_WRITE:
+            log_error("SSL operation would block");
+            break;
+        case SSL_ERROR_SYSCALL:
+            log_error("SSL system error: %s", strerror(errno));
+            break;
+        default:
+            log_error("SSL error: %d", err);
+            break;
+    }
+    return false;
+}
+```
+
+### Thread-Safe Error Handling
+Ensure error handling is thread-safe:
+
+```c
+// Thread-local error storage
+static __thread char last_error_message[256];
+
+void set_last_error(const char *format, ...) {
+    va_list args;
+    va_start(args, format);
+    vsnprintf(last_error_message, sizeof(last_error_message), format, args);
+    va_end(args);
+}
+
+const char *get_last_error(void) {
+    return last_error_message;
+}
+```
+
+## References
+- @SEI CERT C Coding Standard - Error Handling
+- @C17 Standard
+- POSIX Specification 
+
+## General Principles
+- Always check return values from functions that can fail
+- Use consistent error reporting mechanisms throughout the codebase
+- Provide detailed error messages that aid in debugging
+- Log errors with appropriate context information
+- Implement graceful failure modes
+- Clean up resources properly when errors occur
+- Avoid silent failures
+
+## Error Reporting Mechanisms
+- Use consistent return codes (0 for success, non-zero for errors)
+- Consider using errno and perror() for system errors
+- Return detailed error information to the caller
+- Use error codes that can be mapped to meaningful messages
+- Implement structured error reporting for complex systems
+- Consider using error enums for type safety
+
+## Network Error Handling
+- Implement timeout handling for network operations
+- Add retry logic with exponential backoff for transient failures
+- Handle connection failures gracefully
+- Validate network data before processing
+- Implement proper error responses in the protocol
+- Clean up network resources on error
+- Report detailed network error information
+
+## File Operation Errors
+- Check file existence before operations
+- Validate file permissions before access attempts
+- Handle disk full conditions
+- Implement atomic file operations where possible
+- Verify file integrity after operations
+- Handle temporary file cleanup on errors
+- Check for file corruption
+
+## Memory Allocation Errors
+- Always check malloc/calloc return values for NULL
+- Implement fallback strategies for out-of-memory conditions
+- Free allocated memory in error paths
+- Use consistent memory allocation error handling
+- Consider using static allocation for critical systems
+- Implement memory pools for performance-critical code
+
+## Module Loading Errors
+- Validate modules before loading
+- Check for compatibility issues
+- Verify module integrity with hash checks
+- Handle dlopen() failures gracefully
+- Provide detailed error information for module loading failures
+- Implement fallback mechanisms for critical modules
+- Clean up resources when module loading fails
+
+## Concurrency Errors
+- Handle thread creation failures
+- Implement proper mutex error checking
+- Detect and handle deadlocks
+- Validate thread synchronization
+- Handle thread termination errors
+- Implement timeouts for thread operations
+- Use thread-safe error reporting
+
+## Project-Specific Error Guidelines
+- Implement detailed error messages as specified in PRD section 3.6
+- Support "file not found", "permission denied" error types
+- Implement chunk integrity failure detection
+- Handle network timeouts with 10-second threshold
+- Support 3 reconnection attempts on failure
+- Clean up resources on timeout
+- Provide error information to clients in a consistent format 
