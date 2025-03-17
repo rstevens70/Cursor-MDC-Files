@@ -1,0 +1,621 @@
+# Memory Management Best Practices
+Based on SEI CERT C Coding Standard, MISRA C Guidelines, POSIX Standard, and industry best practices
+
+## Allocation Fundamentals
+
+### Initialization and Validation
+According to SEI CERT C (MEM32-C, MEM12-C):
+
+```c
+// INCORRECT - No initialization or validation
+int *ptr = malloc(10 * sizeof(int));
+ptr[0] = 42; // Risky if malloc failed
+
+// CORRECT - Initialize and validate
+int *ptr = NULL;
+ptr = malloc(10 * sizeof(int));
+if (ptr == NULL) {
+    // Handle allocation failure
+    fprintf(stderr, "Memory allocation failed\n");
+    return ERROR_MEMORY_ALLOCATION_FAILED;
+}
+// Now safe to use
+ptr[0] = 42;
+```
+
+### Proper Allocation Size Calculation
+Prevent integer overflow in allocation (CERT MEM07-C):
+
+```c
+// INCORRECT - Integer overflow risk
+size_t num_elements = get_num_elements(); // Could be very large
+int *array = malloc(num_elements * sizeof(int)); // Possible overflow
+
+// CORRECT - Check for overflow
+size_t num_elements = get_num_elements();
+if (num_elements > SIZE_MAX / sizeof(int)) {
+    // Handle error: allocation size would overflow
+    return ERROR_ALLOCATION_TOO_LARGE;
+}
+int *array = malloc(num_elements * sizeof(int));
+if (array == NULL) {
+    // Handle allocation failure
+}
+```
+
+### Use sizeof with the Target Type
+Always use sizeof with the target type, not hardcoded sizes:
+
+```c
+// INCORRECT - Hardcoded size
+int *array = malloc(40); // Assumes int is 4 bytes
+
+// CORRECT - Use sizeof with the type
+int *array = malloc(10 * sizeof(int)); // Portable
+// Even better:
+int *array = malloc(10 * sizeof(*array)); // Uses the pointer type
+```
+
+## Deallocation Best Practices
+
+### Free All Allocated Memory
+Ensure every malloc/calloc/realloc has a matching free (CERT MEM31-C):
+
+```c
+// INCORRECT - Memory leak
+void process_data() {
+    char *buffer = malloc(1024);
+    if (some_condition) {
+        return; // Leak if true
+    }
+    free(buffer);
+}
+
+// CORRECT - Always free
+void process_data() {
+    char *buffer = malloc(1024);
+    if (buffer == NULL) {
+        return;
+    }
+    
+    if (some_condition) {
+        free(buffer); // Free before early return
+        return;
+    }
+    
+    // Use buffer...
+    free(buffer); // Normal path free
+}
+```
+
+### Prevent Double Free
+Avoid freeing memory more than once (CERT MEM34-C):
+
+```c
+// INCORRECT - Potential double free
+free(ptr);
+// ... more code
+free(ptr); // Undefined behavior!
+
+// CORRECT - Null pointer after free
+free(ptr);
+ptr = NULL;
+// ... more code
+if (ptr != NULL) { // Will not execute
+    free(ptr);
+}
+```
+
+### Free Matched Allocation Function
+Use the right deallocation function (CERT MEM31-C):
+
+```c
+// Allocation and matching deallocation
+void *p1 = malloc(10);   // -> free(p1);
+void *p2 = calloc(5, 2); // -> free(p2);
+void *p3 = realloc(NULL, 10); // -> free(p3);
+
+// C++ new/delete (if applicable)
+int *p4 = new int;      // -> delete p4;
+int *p5 = new int[10];  // -> delete[] p5;
+```
+
+## Special Memory Handling
+
+### Secure Data Wiping
+For security-sensitive data, wipe memory before freeing (CERT MEM03-C):
+
+```c
+// Secure data handling
+void process_sensitive_data(const char *password) {
+    char *buffer = malloc(PASSWORD_MAX_LENGTH);
+    if (buffer == NULL) {
+        return;
+    }
+    
+    strcpy(buffer, password);
+    // Process secure data...
+    
+    // Clear before freeing
+    memset(buffer, 0, PASSWORD_MAX_LENGTH);
+    free(buffer);
+}
+```
+
+### Memory Protection
+Use memory protection for sensitive areas when available:
+
+```c
+#include <sys/mman.h>
+
+// Lock pages into memory to prevent swapping to disk
+void *secure_buffer = malloc(4096);
+if (secure_buffer != NULL) {
+    if (mlock(secure_buffer, 4096) != 0) {
+        // Handle error
+    }
+    
+    // Use secure_buffer...
+    
+    // Clear and unlock before freeing
+    memset(secure_buffer, 0, 4096);
+    munlock(secure_buffer, 4096);
+    free(secure_buffer);
+}
+```
+
+## Memory Usage Patterns
+
+### Dynamic Memory Best Practices
+- Avoid excessive allocations in performance-critical code
+- Consider using memory pools for frequent allocations
+- Use stack allocation for small, short-lived objects
+
+```c
+// INCORRECT - Frequent small allocations in a loop
+for (int i = 0; i < 1000; i++) {
+    int *value = malloc(sizeof(int));
+    *value = i;
+    process_value(value);
+    free(value);
+}
+
+// BETTER - Reuse allocation
+int *value = malloc(sizeof(int));
+if (value != NULL) {
+    for (int i = 0; i < 1000; i++) {
+        *value = i;
+        process_value(value);
+    }
+    free(value);
+}
+
+// BEST for small objects - Use stack
+for (int i = 0; i < 1000; i++) {
+    int value = i;
+    process_value_by_ref(&value);
+}
+```
+
+### Memory Alignment
+Respect alignment requirements for different types:
+
+```c
+// For specialized needs, use aligned_alloc (C11)
+void *aligned_ptr = aligned_alloc(64, 1024); // 64-byte alignment
+if (aligned_ptr != NULL) {
+    // Use aligned memory...
+    free(aligned_ptr);
+}
+```
+
+## Memory Ownership
+
+### Clear Ownership Rules
+Establish clear memory ownership in APIs:
+
+```c
+// Function that takes ownership (callee must free)
+int *create_array(size_t size) {
+    int *array = malloc(size * sizeof(int));
+    // Initialize array...
+    return array; // Caller now owns this memory
+}
+
+// Function that borrows memory (caller retains ownership)
+void process_array(int *array, size_t size) {
+    // Use array but don't free it
+}
+
+// Function that takes a copy (doesn't affect original)
+int *duplicate_array(const int *source, size_t size) {
+    int *copy = malloc(size * sizeof(int));
+    if (copy != NULL) {
+        memcpy(copy, source, size * sizeof(int));
+    }
+    return copy;
+}
+```
+
+### Document Memory Ownership
+Always document memory ownership in function comments:
+
+```c
+/**
+ * Allocates and returns a new string containing the concatenation of s1 and s2.
+ * 
+ * @param s1 First string
+ * @param s2 Second string
+ * @return Newly allocated string containing s1+s2, or NULL on failure
+ * @note Caller is responsible for freeing the returned string
+ */
+char *concat_strings(const char *s1, const char *s2) {
+    // Implementation...
+}
+```
+
+## Thread Safety
+Based on POSIX Standard (Single UNIX Specification):
+
+### Thread-Safe Memory Allocation
+Use thread-safe memory allocation functions in multi-threaded environments:
+
+```c
+// Thread-safe memory allocation
+#include <pthread.h>
+
+// Global mutex for memory operations
+pthread_mutex_t memory_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+// Thread-safe allocation wrapper
+void* thread_safe_malloc(size_t size) {
+    void* ptr;
+    pthread_mutex_lock(&memory_mutex);
+    ptr = malloc(size);
+    pthread_mutex_unlock(&memory_mutex);
+    return ptr;
+}
+
+// Thread-safe free wrapper
+void thread_safe_free(void* ptr) {
+    pthread_mutex_lock(&memory_mutex);
+    free(ptr);
+    pthread_mutex_unlock(&memory_mutex);
+}
+```
+
+### Thread-Local Storage
+Use thread-local storage for thread-specific memory needs:
+
+```c
+#include <pthread.h>
+
+// Create thread-specific key
+pthread_key_t thread_buffer_key;
+
+// Initialize in program startup
+int init_thread_storage(void) {
+    return pthread_key_create(&thread_buffer_key, free);
+}
+
+// Get thread-specific buffer
+char* get_thread_buffer(size_t size) {
+    char* buffer = pthread_getspecific(thread_buffer_key);
+    if (buffer == NULL) {
+        buffer = malloc(size);
+        if (buffer != NULL) {
+            pthread_setspecific(thread_buffer_key, buffer);
+        }
+    }
+    return buffer;
+}
+```
+
+### Thread Synchronization for Shared Memory
+Properly synchronize access to shared memory regions:
+
+```c
+// Using mutex for shared memory access
+pthread_mutex_t shared_data_mutex = PTHREAD_MUTEX_INITIALIZER;
+int* shared_data = NULL;
+
+void init_shared_data(size_t size) {
+    pthread_mutex_lock(&shared_data_mutex);
+    if (shared_data == NULL) {
+        shared_data = malloc(size * sizeof(int));
+    }
+    pthread_mutex_unlock(&shared_data_mutex);
+}
+
+void update_shared_data(int index, int value) {
+    pthread_mutex_lock(&shared_data_mutex);
+    if (shared_data != NULL && index >= 0) {
+        shared_data[index] = value;
+    }
+    pthread_mutex_unlock(&shared_data_mutex);
+}
+```
+
+### Read-Write Locks for Performance
+Use read-write locks when appropriate for better concurrency:
+
+```c
+#include <pthread.h>
+
+pthread_rwlock_t data_rwlock = PTHREAD_RWLOCK_INITIALIZER;
+void* shared_resource = NULL;
+
+// Multiple readers can access simultaneously
+void read_resource(void) {
+    pthread_rwlock_rdlock(&data_rwlock);
+    // Read from shared_resource
+    pthread_rwlock_unlock(&data_rwlock);
+}
+
+// Only one writer at a time, no readers during write
+void update_resource(void) {
+    pthread_rwlock_wrlock(&data_rwlock);
+    // Modify shared_resource
+    pthread_rwlock_unlock(&data_rwlock);
+}
+```
+
+## Preventing Pipe Deadlocks
+Based on POSIX Standard pipe handling best practices:
+
+### Non-blocking I/O for Pipes
+Use non-blocking I/O to prevent deadlocks when using pipes:
+
+```c
+#include <fcntl.h>
+#include <unistd.h>
+
+// Set pipe to non-blocking mode
+int set_nonblocking(int fd) {
+    int flags = fcntl(fd, F_GETFL, 0);
+    if (flags == -1) return -1;
+    return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+}
+
+// Example of non-blocking pipe I/O
+void nonblocking_pipe_example(void) {
+    int pipefd[2];
+    char buffer[1024];
+    ssize_t bytes_read;
+    
+    if (pipe(pipefd) == -1) {
+        perror("pipe");
+        return;
+    }
+    
+    // Set read end to non-blocking
+    set_nonblocking(pipefd[0]);
+    
+    // Now read won't block indefinitely
+    bytes_read = read(pipefd[0], buffer, sizeof(buffer));
+    if (bytes_read < 0 && errno == EAGAIN) {
+        // No data available, handle this case
+        printf("No data available, would block\n");
+    }
+    
+    close(pipefd[0]);
+    close(pipefd[1]);
+}
+```
+
+### Select/Poll for Multiple Pipes
+Use select() or poll() to handle multiple pipes without deadlocks:
+
+```c
+#include <sys/select.h>
+#include <unistd.h>
+
+// Monitor multiple pipes with timeout
+void monitor_pipes(int pipe1_read, int pipe2_read, int timeout_sec) {
+    fd_set read_fds;
+    struct timeval tv;
+    int max_fd = (pipe1_read > pipe2_read) ? pipe1_read : pipe2_read;
+    
+    // Set up the file descriptor set
+    FD_ZERO(&read_fds);
+    FD_SET(pipe1_read, &read_fds);
+    FD_SET(pipe2_read, &read_fds);
+    
+    // Set up the timeout
+    tv.tv_sec = timeout_sec;
+    tv.tv_usec = 0;
+    
+    // Wait for data on any pipe
+    int ready = select(max_fd + 1, &read_fds, NULL, NULL, &tv);
+    
+    if (ready == -1) {
+        perror("select");
+        return;
+    }
+    
+    if (ready == 0) {
+        printf("Timeout occurred, no data available\n");
+        return;
+    }
+    
+    // Check which pipe has data
+    if (FD_ISSET(pipe1_read, &read_fds)) {
+        printf("Data available on pipe 1\n");
+        // Read from pipe1_read
+    }
+    
+    if (FD_ISSET(pipe2_read, &read_fds)) {
+        printf("Data available on pipe 2\n");
+        // Read from pipe2_read
+    }
+}
+```
+
+### Pipe Buffer Size Awareness
+Be aware of pipe buffer sizes to prevent deadlocks:
+
+```c
+#include <unistd.h>
+#include <limits.h>
+#include <fcntl.h>
+
+// Get pipe buffer size (where available)
+long get_pipe_buffer_size(void) {
+#ifdef _PC_PIPE_BUF
+    return pathconf("/", _PC_PIPE_BUF);
+#else
+    return PIPE_BUF; // POSIX guaranteed minimum
+#endif
+}
+
+// Write safely to pipes
+ssize_t safe_pipe_write(int fd, const void *buf, size_t count) {
+    size_t total_written = 0;
+    const char *buffer = (const char *)buf;
+    
+    // Break large writes into PIPE_BUF-sized chunks
+    // PIPE_BUF writes are guaranteed to be atomic
+    while (total_written < count) {
+        size_t to_write = ((count - total_written) > PIPE_BUF) ? 
+                           PIPE_BUF : (count - total_written);
+        
+        ssize_t written = write(fd, buffer + total_written, to_write);
+        
+        if (written <= 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                // Would block, try again later
+                continue;
+            }
+            return -1; // Error
+        }
+        
+        total_written += written;
+    }
+    
+    return total_written;
+}
+```
+
+## Using Condition Variables to Prevent Deadlocks
+Condition variables can help coordinate threads and prevent deadlocks:
+
+```c
+#include <pthread.h>
+
+pthread_mutex_t data_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t data_cond = PTHREAD_COND_INITIALIZER;
+int data_ready = 0;
+
+// Producer thread
+void* producer(void* arg) {
+    while (1) {
+        // Prepare data
+        pthread_mutex_lock(&data_mutex);
+        // Set data
+        data_ready = 1;
+        // Signal consumers
+        pthread_cond_signal(&data_cond);
+        pthread_mutex_unlock(&data_mutex);
+    }
+    return NULL;
+}
+
+// Consumer thread
+void* consumer(void* arg) {
+    while (1) {
+        pthread_mutex_lock(&data_mutex);
+        // Wait for data to be ready
+        while (!data_ready) {
+            pthread_cond_wait(&data_cond, &data_mutex);
+        }
+        // Process data
+        data_ready = 0;
+        pthread_mutex_unlock(&data_mutex);
+    }
+    return NULL;
+}
+```
+
+## Memory Debugging Tools
+
+### Use Memory Debugging Tools
+- Valgrind for detecting memory leaks, use-after-free, etc.
+- Compiler sanitizers like AddressSanitizer (ASan)
+- Static analysis tools
+
+```bash
+# Compile with sanitizer
+gcc -g -fsanitize=address source.c -o program
+
+# Run with Valgrind
+valgrind --leak-check=full ./program
+```
+
+## References
+- @SEI CERT C Coding Standard - Memory Management
+- @MISRA C 2023 Guidelines
+- @C17 Standard Draft (n3096)
+- @POSIX Standard (Single UNIX Specification)
+
+## Allocation and Deallocation
+- Always check the return value of malloc(), calloc(), and realloc()
+- Free all allocated memory when no longer needed
+- Use calloc() when initializing memory to zero
+- Avoid using realloc() on memory that needs to preserve its contents
+- Implement proper cleanup in error conditions
+- Use consistent allocation patterns throughout the codebase
+- Consider using custom allocators for special needs
+
+## Memory Safety
+- Avoid buffer overflows by using bounds-checking functions
+- Use strncpy() instead of strcpy(), strncat() instead of strcat()
+- Validate array indices before access
+- Avoid pointer arithmetic that could go out of bounds
+- Use size_t for memory sizes and array indices
+- Validate user input before using it for memory operations
+- Implement proper null termination for strings
+
+## Memory Leaks Prevention
+- Track all allocations and ensure matching deallocations
+- Implement proper error handling paths that free memory
+- Use tools like Valgrind to detect memory leaks
+- Consider using smart pointers or reference counting in C++
+- Implement cleanup handlers for complex data structures
+- Use consistent ownership models for memory
+- Document memory ownership in function interfaces
+
+## Optimization Techniques
+- Minimize dynamic allocations in performance-critical code
+- Consider memory pooling for frequent allocations/deallocations
+- Use stack allocation for small, temporary objects
+- Align data structures for better memory access patterns
+- Minimize memory fragmentation
+- Consider memory mapping for large files
+- Use appropriate data structures to minimize memory usage
+
+## Thread Safety
+- Use thread-local storage when appropriate
+- Implement proper synchronization for shared memory
+- Avoid race conditions in memory allocation/deallocation
+- Use thread-safe memory allocation functions when needed
+- Be aware of false sharing in multithreaded code
+- Document thread safety requirements for memory interfaces
+- Consider lock-free data structures for high-performance code
+
+## Large Memory Handling
+- Implement chunking for large memory operations
+- Handle out-of-memory conditions gracefully
+- Consider memory-mapped files for very large datasets
+- Implement progressive loading for large data
+- Use streaming approaches when possible
+- Monitor memory usage and implement limits
+- Consider compression for large data
+
+## Project-Specific Guidelines
+- Implement 1MB chunking for file transfers as specified in PRD
+- Support handling of files up to 10GB in size
+- Implement proper cleanup of incomplete transfers
+- Use SHA-256 for memory integrity verification
+- Implement secure memory handling for cryptographic operations
+- Clear sensitive data from memory after use
+- Validate memory integrity during critical operations 
