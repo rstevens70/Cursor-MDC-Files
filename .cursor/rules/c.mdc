@@ -1,20 +1,257 @@
-globs: *.c, *.h
+ # C Programming Best Practices
+Based on SEI CERT C Coding Standard, MISRA C Guidelines, and C17 Standard
 
-Rules:
-- Use C11 standard for all code unless otherwise specified.
-- Follow K&R style for formatting (e.g., braces on same line, 4-space indentation).
-- Write concise, portable C code compatible with POSIX systems.
-- Always declare function prototypes in header files (*.h) before implementation in source files (*.c).
-- Use meaningful variable and function names with snake_case convention (e.g., `process_data`, not `processData`).
-- Include error handling with appropriate return codes (e.g., 0 for success, negative values for errors).
-- Prefer explicit memory management with `malloc` and `free`; avoid memory leaks.
-- Use `const` for immutable data and pointers where applicable.
-- Avoid global variables unless necessary; prefer passing data via function parameters.
-- Comment complex logic with brief, clear explanations above the relevant code block.
-- For pointers, use descriptive names indicating purpose (e.g., `input_ptr` instead of `ptr`).
-- Include standard library headers explicitly (e.g., `<stdio.h>`, `<stdlib.h>`); avoid unnecessary includes.
+## General Guidelines
+- Use consistent indentation (4 spaces as per project guidelines)
+- Limit line length to 80-100 characters for readability
+- Use meaningful variable and function names with snake_case
+- Define constants with UPPER_SNAKE_CASE
+- Always initialize variables before use
+- Avoid global variables when possible
+- Prefer static functions for internal implementation details
 
-Examples:
-- Function declaration in *.h:
-  ```c
-  int process_data(const char *input, size_t length);
+## Security (SEI CERT C)
+- Validate all input from external sources
+- Use bounds-checking functions (strncpy instead of strcpy, etc.)
+- Check return values from functions that can fail
+- Avoid dangerous functions (gets, scanf without field width limits)
+- Validate array indices before use
+- Use secure random number generation for cryptographic purposes
+- Sanitize data before passing to system() or exec() functions
+
+## Portability (MISRA C)
+- Use fixed-width integer types (uint32_t, int64_t) for consistent behavior
+- Avoid implementation-defined behavior
+- Check for integer overflow in arithmetic operations
+- Use platform-independent file I/O operations
+- Avoid compiler-specific extensions
+- Test code on all target platforms (Ubuntu, Debian, FreeBSD)
+- Use conditional compilation (#ifdef) sparingly and with clear documentation
+
+## Memory Management
+- Always free allocated memory
+- Check malloc/calloc return values for NULL
+- Avoid memory leaks in error handling paths
+- Use appropriate data structures to minimize memory usage
+- Implement proper cleanup in error conditions
+- Avoid excessive dynamic memory allocation in performance-critical code
+- Consider using static analysis tools to detect memory issues
+
+## Error Handling
+- Use consistent error reporting mechanisms
+- Check return values from system calls and library functions
+- Provide meaningful error messages
+- Log errors with appropriate context information
+- Implement graceful failure modes
+- Clean up resources properly when errors occur
+- Consider using errno and perror() for system errors
+Use @error.mdc for more details
+
+## C17 Standard Compliance
+- Use C17 features when available on all target platforms
+- Avoid deprecated functions and constructs
+- Follow standard library function interfaces precisely
+- Use standard-compliant header files
+- Ensure code compiles with strict warning flags (-Wall -Wextra -Werror)
+
+## POSIX Compliance
+- Use POSIX thread functions correctly with proper synchronization
+- Follow POSIX file I/O conventions
+- Check for platform-specific POSIX extensions
+- Use POSIX signal handling appropriately
+- Implement proper error handling for POSIX functions
+- Be aware of differences in POSIX implementations across target platforms
+
+## Security-First Programming
+
+### Safe Functions
+Critical security vulnerabilities often stem from buffer overflows and misuse of unsafe functions. According to SEI CERT C (STR31-C, STR32-C):
+
+| Unsafe Function | Safe Alternative | Rationale |
+|----------------|-----------------|-----------|
+| `strcpy()` | `strncpy()` or `strlcpy()` | Includes bounds checking to prevent buffer overflows |
+| `gets()` | `fgets()` | Allows buffer size specification |
+| `sprintf()` | `snprintf()` | Includes a size limit parameter |
+| `strcat()` | `strncat()` | Prevents buffer overflows with length parameter |
+| `scanf()` without field width | `scanf()` with field width | Prevents buffer overflows |
+
+Example secure code pattern:
+```c
+// Instead of:
+char buffer[10];
+strcpy(buffer, src); // Potentially unsafe
+
+// Use:
+char buffer[10];
+strncpy(buffer, src, sizeof(buffer) - 1);
+buffer[sizeof(buffer) - 1] = '\0'; // Ensure null-termination
+```
+
+### Integer Handling (CERT INT30-C, INT31-C, INT32-C)
+- Use appropriate integer types for the data range
+- Check for integer overflow before performing operations
+- Use size_t for sizes and array indices
+
+```c
+// Check for overflow before operation
+if (a > INT_MAX - b) {
+    // Handle overflow
+} else {
+    int result = a + b;
+}
+```
+
+## Function Design
+
+### Size and Complexity
+Based on MISRA C Guidelines and best practices:
+- **Maximum Length**: 50 lines per function
+- **Maximum Parameters**: 5 parameters
+- **Cyclomatic Complexity**: ≤ 10 (measurable with tools like lizard)
+
+### Single Responsibility Principle
+Each function should do one thing well. Signs a function needs refactoring:
+- Multiple logical operations
+- Multiple levels of nested conditionals
+- Multiple return paths
+
+Before:
+```c
+void processData(int a, int b, int c, int d, int e, int f) {
+    // 60+ lines doing multiple operations
+}
+```
+
+After:
+```c
+void validateInputs(int a, int b, int c, int d, int e) {
+    // Input validation
+}
+
+int performCalculation(int a, int b, int c) {
+    // Core calculation
+}
+
+void storeResults(int result, int d, int e) {
+    // Result handling
+}
+
+void processData(int a, int b, int c, int d, int e) {
+    validateInputs(a, b, c, d, e);
+    int result = performCalculation(a, b, c);
+    storeResults(result, d, e);
+}
+```
+
+## Code Organization and Reuse
+
+### Eliminating Duplication
+Repeated code blocks should be extracted into functions:
+- More than 5 similar lines appearing in multiple places
+- Same operation performed in multiple functions
+
+Example:
+```c
+// Instead of repeating:
+printf("Error: %d\n", errno);
+cleanup_resources();
+log_error(errno);
+// Multiple times, use:
+void handle_error(int error_code) {
+    printf("Error: %d\n", error_code);
+    cleanup_resources();
+    log_error(error_code);
+}
+```
+
+### Consistent Error Handling
+See [error.mdc] for detailed error handling guidelines.
+
+## Variable Management
+
+### Initialization
+CERT C (DCL14-C) requires initializing variables before use:
+```c
+// Always initialize variables
+int count = 0;
+char *buffer = NULL;
+```
+
+### Scope Minimization (CERT DCL19-C)
+- Declare variables in the smallest possible scope
+- Initialize at point of declaration when possible
+
+```c
+// Prefer this:
+for (size_t i = 0; i < limit; i++) {
+    // i is only used in the loop
+}
+
+// Over this:
+size_t i;
+// Many lines of code
+for (i = 0; i < limit; i++) {
+    // Loop body
+}
+```
+
+### Const Usage (CERT DCL00-C)
+- Use const for values that shouldn't change
+- Use const for pointer parameters that shouldn't modify data
+
+```c
+void printMessage(const char *message) {
+    // Function can't modify the string
+    printf("%s\n", message);
+}
+```
+
+## Additional Best Practices
+
+### Avoid Magic Numbers
+Replace numeric literals with named constants:
+```c
+// Instead of:
+if (status == 200) { ... }
+
+// Use:
+#define HTTP_OK 200
+if (status == HTTP_OK) { ... }
+
+// Or better yet:
+enum HttpStatus { HTTP_OK = 200, HTTP_NOT_FOUND = 404 };
+if (status == HTTP_OK) { ... }
+```
+
+### Use Descriptive Naming
+Variable and function names should clearly describe their purpose:
+- Functions: use verbs (e.g., `calculateTotalCost`)
+- Variables: use nouns (e.g., `userCount`)
+- Boolean variables: use is/has prefixes (e.g., `isValid`, `hasPermission`)
+
+### Ensure All Return Paths
+Every non-void function must return a value on all execution paths (CERT MSC37-C):
+```c
+// Incorrect:
+int divide(int a, int b) {
+    if (b != 0) {
+        return a / b;
+    }
+    // Missing return for b == 0
+}
+
+// Correct:
+int divide(int a, int b) {
+    if (b != 0) {
+        return a / b;
+    }
+    // Error handling for b == 0
+    errno = EINVAL;
+    return -1; // Error indicator
+}
+```
+
+## References:
+- @SEI CERT C Coding Standard
+- @MISRA C Guidelines
+- @C17 Standard 
