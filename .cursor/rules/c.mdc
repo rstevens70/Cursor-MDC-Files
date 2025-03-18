@@ -1,5 +1,16 @@
- # C Programming Best Practices
+---
+description: C Programming Core Guidelines
+globs: 
+alwaysApply: false
+---
+# C Programming Best Practices
 Based on SEI CERT C Coding Standard, MISRA C Guidelines, and C17 Standard
+
+> **Related Guidelines:**
+> - See [memory.md] for detailed memory management guidelines
+> - See [error.md] for comprehensive error handling patterns
+> - See [comments.md] for documentation and commenting standards
+> - See [cmake.md] for build configuration guidelines
 
 ## General Guidelines
 - Use consistent indentation (4 spaces as per project guidelines)
@@ -37,6 +48,8 @@ Based on SEI CERT C Coding Standard, MISRA C Guidelines, and C17 Standard
 - Avoid excessive dynamic memory allocation in performance-critical code
 - Consider using static analysis tools to detect memory issues
 
+> **Note:** See [memory.md] for detailed memory management patterns and examples
+
 ## Error Handling
 - Use consistent error reporting mechanisms
 - Check return values from system calls and library functions
@@ -45,7 +58,8 @@ Based on SEI CERT C Coding Standard, MISRA C Guidelines, and C17 Standard
 - Implement graceful failure modes
 - Clean up resources properly when errors occur
 - Consider using errno and perror() for system errors
-Use @error.mdc for more details
+
+> **Note:** See [error.md] for comprehensive error handling strategies and patterns
 
 ## C17 Standard Compliance
 - Use C17 features when available on all target platforms
@@ -165,7 +179,7 @@ void handle_error(int error_code) {
 ```
 
 ### Consistent Error Handling
-See [error.mdc] for detailed error handling guidelines.
+See [error.md] for detailed error handling guidelines.
 
 ## Variable Management
 

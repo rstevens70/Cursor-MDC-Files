@@ -1,5 +1,15 @@
+---
+description: Memory Management Guidelines
+globs: 
+alwaysApply: false
+---
 # Memory Management Best Practices
 Based on SEI CERT C Coding Standard, MISRA C Guidelines, POSIX Standard, and industry best practices
+
+> **Related Guidelines:**
+> - See [c.md] for general C programming guidelines
+> - See [error.md] for error handling patterns in memory operations
+> - See [comments.md] for documenting memory ownership and usage
 
 ## Allocation Fundamentals
 

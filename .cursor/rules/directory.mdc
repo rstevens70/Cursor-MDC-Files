@@ -1,67 +1,91 @@
-Directory Management Guidelines
+---
+description: Directory Management Guidelines
+globs: 
+alwaysApply: true
+---
+# Directory Management Guidelines
+
+> **Related Guidelines:**
+> - See [c.md] for general C programming guidelines
+> - See [cmake.md] for build configuration structure
+
 To ensure that commands are run and files are created in the correct location, follow these guidelines.
-Confirming the Current Directory
+
+## Confirming the Current Directory
 Before performing any operations that depend on the current working directory, confirm the directory using the pwd command.
+
 Example:
 ```bash
-
 $ pwd
 /home/user/project
 ```
+
 If possible, configure the IDE to display the current working directory in the interface.
-Handling File Paths Safely
-Prefer absolute paths: Use full paths to files and directories to avoid dependency on the current directory.
-Example: Instead of gcc src/main.c, use gcc /home/user/project/src/main.c.
 
-Be cautious with relative paths: If using relative paths, ensure the current directory is set correctly.
-Example: If you need to compile src/main.c from the project root, make sure you are in /home/user/project before running gcc src/main.c.
+## Handling File Paths Safely
 
-Best Practices for Directory Management
-Set a default working directory: At the start of each session, navigate to the project's root directory or another standard location.
+### Prefer absolute paths
+Use full paths to files and directories to avoid dependency on the current directory.
+
+Example: Instead of `gcc src/main.c`, use `gcc /home/user/project/src/main.c`.
+
+### Be cautious with relative paths
+If using relative paths, ensure the current directory is set correctly.
+
+Example: If you need to compile src/main.c from the project root, make sure you are in /home/user/project before running `gcc src/main.c`.
+
+## Best Practices for Directory Management
+
+### Set a default working directory
+At the start of each session, navigate to the project's root directory or another standard location.
+
 Example:
-
 ```bash
-
 cd /home/user/project
 ```
-Use pushd and popd for temporary changes: When you need to change directories temporarily within a script, use pushd to save the current directory and popd to return.
+
+### Use pushd and popd for temporary changes
+When you need to change directories temporarily within a script, use pushd to save the current directory and popd to return.
+
 Example:
-
 ```bash
-
 pushd /path/to/directory
 # perform operations
 popd
 ```
-Include cd in commands: When generating commands that need to be run from a specific directory, include cd to set the directory first.
+
+### Include cd in commands
+When generating commands that need to be run from a specific directory, include cd to set the directory first.
+
 Example:
 ```bash
-
 cd /home/user/project && gcc src/main.c -o build/myapp
 ```
-Examples
-Example 1: Confirming the directory before creating a file
+
+## Examples
+
+### Example 1: Confirming the directory before creating a file
 Before running touch newfile.txt, check the current directory:
 ```bash
-
 $ pwd
 /home/user/project
 $ touch newfile.txt
 ```
-Example 2: Using absolute paths
+
+### Example 2: Using absolute paths
 Instead of relying on the current directory, use absolute paths:
 ```bash
-
 $ gcc /home/user/project/src/main.c -o /home/user/project/build/myapp
 ```
-Example 3: Handling directory changes in scripts
+
+### Example 3: Handling directory changes in scripts
 To perform operations in a specific directory without affecting the current shell:
 ```bash
-
 $ pushd /home/user/project/build
 $ make
 $ popd
 ```
+
 Or, in a single command:
 ```bash
 $ (cd /home/user/project/build && make)

@@ -1,4 +1,13 @@
- # CMake Best Practices
+---
+description: CMake Build System Guidelines
+globs: 
+alwaysApply: false
+---
+# CMake Best Practices
+
+> **Related Guidelines:**
+> - See [c.md] for general C programming guidelines
+> - See [directory.md] for directory structure conventions
 
 ## General Guidelines
 - Use modern CMake (3.10+) with target-based approach

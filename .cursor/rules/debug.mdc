@@ -1,8 +1,16 @@
 ---
-description: Debug mode
-globs:
-alwaysApply: true
+description: Debugging Methodology
+globs: 
+alwaysApply: false
 ---
+# Debugging Methodology
+
+> **Related Guidelines:**
+> - See [c.md] for C programming guidelines
+> - See [error.md] for error handling patterns
+> - See [memory.md] for memory troubleshooting
+> - See [implement.md] for implementation workflow
+
 When asked to enter "Debug Mode" deeply reflect upon the changes being asked and analyze existing code to map the full scope of changes needed.
 
 Reflect on 5-7 different possible sources of the problem, distill those down to 1-2 most likely sources, and then add logs to validate your assumptions before we move onto implementing the actual code fix

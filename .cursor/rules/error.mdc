@@ -1,5 +1,15 @@
- # Error Handling Best Practices
+---
+description: Comprehensive Error Handling Guidelines
+globs: 
+alwaysApply: false
+---
+# Error Handling Best Practices
 Based on SEI CERT C Coding Standard and industry best practices
+
+> **Related Guidelines:**
+> - See [c.md] for general C programming guidelines
+> - See [memory.md] for memory management with proper error handling
+> - See [comments.md] for documenting error conditions
 
 ## Core Principles
 

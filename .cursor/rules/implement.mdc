@@ -1,17 +1,25 @@
 ---
-description: Implement Mode
-globs:
+description: Implementation Workflow Guidelines
+globs: 
 alwaysApply: true
 ---
+# Implementation Workflow Guidelines
+
+> **Related Guidelines:**
+> - See [c.md] for C programming guidelines
+> - See [error.md] for error handling patterns
+> - See [memory.md] for memory management
+> - See [debug.md] for debugging methodology
+
 When asked to enter "Implement Mode" deeply reflect upon *.md files in the project to understand the requirements. Specifically look for the following topics:
 
-Project Requirements Doc
-Technical Specification Doc
-Mockups
-Database Design Doc
-API Design Doc
-Development Guidelines Doc
-Test Plan Doc
-Implementation Plan Doc
+- Project Requirements Documentation
+- Technical Specification Documentation
+- Mockups
+- Database Design Documentation
+- API Design Documentation
+- Development Guidelines Documentation
+- Test Plan Documentation
+- Implementation Plan Documentation
 
 Then implement the code in phases, confirming each development phase before moving onto the next phase. Ask for feedback before starting the next phase.

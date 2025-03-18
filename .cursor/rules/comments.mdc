@@ -1,5 +1,15 @@
- # C Function Documentation Guidelines
+---
+description: Documentation and Comment Guidelines
+globs: 
+alwaysApply: false
+---
+# C Function Documentation Guidelines
 Based on Doxygen documentation standards and industry best practices
+
+> **Related Guidelines:**
+> - See [c.md] for general C programming guidelines
+> - See [error.md] for documenting error conditions
+> - See [memory.md] for documenting memory ownership patterns
 
 ## Doxygen-Compatible Comment Blocks
 
